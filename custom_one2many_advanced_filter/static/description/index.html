@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>One2many Advanced Filter</title>
+    <style>
+        html,
+        body {
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            background: #f5f7fb;
+            color: #102033;
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.55;
+        }
+
+        .odx-page {
+            width: 100%;
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 0 14px 28px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .odx-page *,
+        .odx-page *::before,
+        .odx-page *::after {
+            box-sizing: border-box;
+        }
+
+        .odx-page img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .feature-card,
+        .odx-section {
+            width: 100%;
+            max-width: 720px;
+            margin: 20px auto;
+            padding: 18px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .odx-section {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .module-demo-gif {
+            display: block;
+            width: 100%;
+            max-width: 620px;
+            max-height: 340px;
+            height: auto;
+            object-fit: contain;
+            margin: 16px auto;
+            border-radius: 10px;
+            box-sizing: border-box;
+            border: 1px solid #dbe3ef;
+            background: #ffffff;
+        }
+
+        .module-screenshot {
+            display: block;
+            width: 100%;
+            max-width: 640px;
+            max-height: 360px;
+            height: auto;
+            object-fit: contain;
+            margin: 16px auto;
+            border-radius: 10px;
+            box-sizing: border-box;
+            border: 1px solid #dbe3ef;
+            background: #ffffff;
+        }
+
+        .marketing-image,
+        .odx-banner-img {
+            display: block;
+            width: 100%;
+            max-width: 620px;
+            max-height: 300px;
+            height: auto;
+            object-fit: contain;
+            margin: 16px auto;
+            border-radius: 10px;
+            box-sizing: border-box;
+            border: 1px solid #dbe3ef;
+            background: #ffffff;
+        }
+
+        .feature-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .odx-hero {
+            text-align: center;
+            background: #ffffff;
+            border-top: 5px solid #2563eb;
+        }
+
+        .odx-logo {
+            display: block;
+            width: 300px;
+            max-width: 300px;
+            height: auto;
+            margin: 4px auto 14px;
+            border-radius: 18px;
+            border: 1px solid #dbe3ef;
+        }
+
+        .odx-kicker {
+            margin: 0 0 8px;
+            color: #714b67;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .odx-title {
+            margin: 0;
+            color: #102033;
+            font-size: 36px;
+            line-height: 1.16;
+            letter-spacing: 0;
+        }
+
+        .odx-headline {
+            margin: 12px 0 0;
+            color: #2563eb;
+            font-size: 22px;
+            line-height: 1.35;
+            font-weight: 700;
+        }
+
+        .odx-lead {
+            max-width: 720px;
+            margin: 14px auto 0;
+            color: #475569;
+            font-size: 17px;
+        }
+
+        .odx-badges {
+            display: block;
+            margin: 18px auto 0;
+            text-align: center;
+        }
+
+        .odx-badge {
+            display: inline-block;
+            margin: 4px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: #eef6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .odx-byline {
+            margin: 12px 0 0;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .odx-section h2 {
+            margin: 0 0 12px;
+            color: #102033;
+            font-size: 26px;
+            line-height: 1.25;
+            letter-spacing: 0;
+        }
+
+        .odx-section h3 {
+            margin: 0 0 8px;
+            color: #102033;
+            font-size: 21px;
+            line-height: 1.3;
+            letter-spacing: 0;
+        }
+
+        .odx-section p {
+            margin: 0 0 12px;
+            color: #475569;
+            font-size: 16px;
+        }
+
+        .odx-card-list {
+            width: 100%;
+            margin: 16px 0 0;
+        }
+
+        .odx-mini-card {
+            width: 100%;
+            margin: 10px 0;
+            padding: 13px 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #102033;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .odx-mini-card span {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            margin-right: 9px;
+            border-radius: 50%;
+            background: #0f766e;
+            vertical-align: middle;
+        }
+
+        .odx-benefits {
+            margin: 16px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .odx-benefits li {
+            width: 100%;
+            margin: 9px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            color: #334155;
+            font-weight: 700;
+        }
+
+        .odx-video-placeholder {
+            width: 100%;
+            max-width: 760px;
+            min-height: 230px;
+            margin: 18px auto 4px;
+            padding: 28px;
+            border-radius: 14px;
+            border: 1px dashed #94a3b8;
+            background: #f8fafc;
+            color: #102033;
+            text-align: center;
+        }
+
+        .odx-play {
+            display: inline-block;
+            width: 72px;
+            height: 72px;
+            margin: 16px auto;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 34px;
+            line-height: 72px;
+            text-align: center;
+        }
+
+        .odx-contact {
+            margin: 12px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .odx-contact li {
+            margin: 9px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            color: #334155;
+        }
+
+        .odx-contact a {
+            color: #2563eb;
+            font-weight: 700;
+            text-decoration: none;
+            word-break: break-word;
+        }
+
+        .odx-footer {
+            text-align: center;
+            background: #ffffff;
+        }
+
+        .odx-footer p {
+            margin: 6px 0;
+            font-weight: 700;
+        }
+
+        @media (max-width: 520px) {
+            .odx-page {
+                padding: 0 10px 24px;
+            }
+
+            .odx-section {
+                padding: 16px;
+                margin: 18px auto;
+                border-radius: 12px;
+            }
+
+            .odx-title {
+                font-size: 28px;
+            }
+
+            .odx-headline {
+                font-size: 19px;
+            }
+
+            .odx-section h2 {
+                font-size: 23px;
+            }
+
+            .feature-card {
+                padding: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="odx-page">
+        <section class="odx-section odx-hero">
+            <img src="icon.png" alt="One2many Advanced Filter icon" class="odx-logo">
+            <img src="banner.png" alt="One2many Advanced Filter banner" class="marketing-image">
+            <p class="odx-kicker">One2many Advanced Filter</p>
+            <h1 class="odx-title">One2many Advanced Filter</h1>
+            <p class="odx-headline">Advanced Filtering Inside One2many Lines</p>
+            <p class="odx-lead">Add powerful search and filtering directly inside one2many list views such as invoice lines, sale order lines, purchase order lines, and other embedded Odoo lines.</p>
+            <div class="odx-badges" aria-label="Compatibility">
+                <span class="odx-badge">Odoo 17 &bull; Odoo 18 &bull; Odoo 19</span>
+            </div>
+            <p class="odx-byline">Developed by DevOdooX</p>
+        </section>
+
+        <section class="odx-section">
+            <h2>Overview</h2>
+            <img src="overview.png" alt="Overview of one2many filtering" class="marketing-image">
+            <p>This module improves the user experience when working with large one2many line tables by allowing users to filter, search, highlight, and focus only on relevant rows without leaving the parent form.</p>
+        </section>
+
+        <section class="odx-section">
+            <h2>Key Features</h2>
+            <img src="features.png" alt="Key features of One2many Advanced Filter" class="marketing-image">
+            <div class="odx-card-list">
+                <div class="odx-mini-card"><span></span>Inline one2many filtering</div>
+                <div class="odx-mini-card"><span></span>Quick search</div>
+                <div class="odx-mini-card"><span></span>Multi-field filtering</div>
+                <div class="odx-mini-card"><span></span>Multiple operators</div>
+                <div class="odx-mini-card"><span></span>Filter by product, notes, sessions, or custom fields</div>
+                <div class="odx-mini-card"><span></span>Highlight matching rows</div>
+                <div class="odx-mini-card"><span></span>Show only matching rows</div>
+                <div class="odx-mini-card"><span></span>Compact filter panel</div>
+                <div class="odx-mini-card"><span></span>Sticky and clean UI</div>
+                <div class="odx-mini-card"><span></span>Works with standard Odoo forms</div>
+            </div>
+        </section>
+
+        <section class="odx-section">
+            <h2>Detailed Features</h2>
+
+            <div class="feature-card">
+                <h3>Inline Filter Panel</h3>
+                <p>Filter one2many lines directly from the parent form without opening a wizard or leaving the document.</p>
+                <img src="screenshots/screen_01.png" alt="Inline Filter Panel" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Quick Search</h3>
+                <p>Quickly search across line content and instantly locate matching rows.</p>
+                <img src="screenshots/screen_02.png" alt="Quick Search" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Multi-field Filtering</h3>
+                <p>Select fields and apply filters based on the line data available in the one2many table.</p>
+                <img src="screenshots/screen_03.png" alt="Multi-field Filtering" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Advanced Operators</h3>
+                <p>Use operators such as contains, equals, not equals, greater than, less than, starts with, and more.</p>
+                <img src="screenshots/screen_04.png" alt="Advanced Operators" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Highlight Matching Rows</h3>
+                <p>Keep all lines visible while highlighting only the rows that match the current filter.</p>
+                <img src="screenshots/screen_05.png" alt="Highlight Matching Rows" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Show Only Filtered Rows</h3>
+                <p>Focus on matching records only by hiding unrelated one2many lines temporarily.</p>
+                <img src="screenshots/screen_06.png" alt="Show Only Filtered Rows" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Compact User Interface</h3>
+                <p>A clean and compact filter area that saves space and keeps the form comfortable to use.</p>
+                <img src="screenshots/screen_07.png" alt="Compact User Interface" class="module-screenshot">
+            </div>
+
+            <div class="feature-card">
+                <h3>Works Across Odoo Documents</h3>
+                <p>Designed to work with common Odoo one2many lines such as sales, invoices, purchases, and other custom documents.</p>
+                <img src="screenshots/screen_08.png" alt="Works Across Odoo Documents" class="module-screenshot">
+            </div>
+        </section>
+
+        <section class="odx-section">
+            <h2>Benefits</h2>
+            <ul class="odx-benefits">
+                <li>Faster data navigation</li>
+                <li>Better user productivity</li>
+                <li>No need to open separate views</li>
+                <li>Cleaner line management</li>
+                <li>Better experience with large documents</li>
+                <li>Useful for sales, accounting, purchase, inventory, and custom modules</li>
+            </ul>
+        </section>
+
+        <section class="odx-section">
+            <h2>Video Demonstration</h2>
+            <div class="odx-video-placeholder">
+                <div class="odx-play">&#9658;</div>
+                <p><strong>Watch the module in action.</strong></p>
+            </div>
+        </section>
+
+        <section class="odx-section">
+            <h2>Support</h2>
+            <img src="support.png" alt="DevOdooX support" class="marketing-image">
+            <ul class="odx-contact">
+                <li><strong>Support Email:</strong> <a href="mailto:devodoox06@gmail.com">devodoox06@gmail.com</a></li>
+                <li><strong>LinkedIn:</strong> DevOdooX</li>
+                <li><strong>YouTube:</strong> DevOdooX</li>
+                <li><strong>Custom Development Available</strong></li>
+                <li><strong>Module Customization Available</strong></li>
+            </ul>
+        </section>
+
+        <section class="odx-section odx-footer">
+            <img src="footer.png" alt="Developed by DevOdooX" class="marketing-image">
+            <p>Developed by DevOdooX</p>
+            <p>Professional Odoo Solutions</p>
+            <p>Compatible with Odoo 17 &bull; 18 &bull; 19</p>
+        </section>
+    </div>
+</body>
+</html>

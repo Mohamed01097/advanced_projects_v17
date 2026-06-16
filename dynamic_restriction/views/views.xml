@@ -41,7 +41,8 @@
                             <group string="Restriction">
                                 <field name="name"/>
                                 <field name="active"/>
-                                <field name="description" placeholder="Internal note about why this restriction exists."/>
+                                <field name="description"
+                                       placeholder="Internal note about why this restriction exists."/>
                             </group>
                             <group string="Scope">
                                 <field name="model_ids" widget="many2many_tags" options="{'no_create': True}"/>
@@ -62,64 +63,77 @@
                             <field name="prevent_archive"/>
                             <field name="prevent_import"/>
                         </group>
-                        <group string="Mass Actions" col="3">
-                            <field name="prevent_mass_edit"/>
-                            <field name="prevent_mass_delete"/>
-                            <field name="prevent_mass_archive"/>
+                        <group string="Mass Actions">
+                            <group>
+                                <field name="prevent_mass_delete"/>
+                            </group>
+                            <group>
+                                <field name="prevent_mass_archive"/>
+                            </group>
                         </group>
-                        <group string="Readonly Fields">
-                            <field name="prevent_readonly_fields"/>
-                            <field name="readonly_field_ids"
-                                   widget="many2many_tags"
-                                   invisible="not prevent_readonly_fields"
-                                   domain="[('model_id', 'in', model_ids), ('store', '=', True), ('name', 'not in', ['id', 'create_uid', 'create_date', 'write_uid', 'write_date'])]"
-                                   options="{'no_create': True}"
-                                   help="Only writes to these fields are blocked; other fields remain editable."/>
+                        <group>
+                            <group string="Readonly Fields">
+                                <field name="prevent_readonly_fields"/>
+                                <field name="readonly_field_ids"
+                                       widget="many2many_tags"
+                                       invisible="not prevent_readonly_fields"
+                                       domain="[('model_id', 'in', model_ids), ('store', '=', True), ('name', 'not in', ['id', 'create_uid', 'create_date', 'write_uid', 'write_date'])]"
+                                       options="{'no_create': True}"
+                                       help="Only writes to these fields are blocked; other fields remain editable."/>
+                            </group>
+                            <group string="Approval Required">
+                                <field name="require_approval"/>
+                                <field name="approval_action_ids"
+                                       widget="many2many_tags"
+                                       invisible="not require_approval"
+                                       options="{'no_create': True}"
+                                       help="These actions create an approval request instead of being executed immediately."/>
+                            </group>
+
                         </group>
-                        <group string="Approval Required">
-                            <field name="require_approval"/>
-                            <field name="approval_action_ids"
-                                   widget="many2many_tags"
-                                   invisible="not require_approval"
-                                   options="{'no_create': True}"
-                                   help="These actions create an approval request instead of being executed immediately."/>
+                        <group>
+                            <group string="Conditional Restriction">
+                                <field name="use_domain"/>
+                                <field name="domain_force"
+                                       invisible="not use_domain"
+                                       placeholder="[('state', '=', 'sale')]"
+                                       help="Example: [('state', '=', 'sale')]"/>
+                            </group>
+                            <group string="Own Documents">
+                                <field name="own_documents_only"/>
+                                <field name="owner_field_id"
+                                       invisible="not own_documents_only"
+                                       required="own_documents_only"
+                                       domain="[('model_id', 'in', model_ids), ('ttype', '=', 'many2one'), ('relation', '=', 'res.users')]"
+                                       options="{'no_create': True}"
+                                       help="Restrict users to records where the selected owner field equals the current user."/>
+                            </group>
+
                         </group>
-                        <group string="Conditional Restriction">
-                            <field name="use_domain"/>
-                            <field name="domain_force"
-                                   invisible="not use_domain"
-                                   placeholder="[('state', '=', 'sale')]"
-                                   help="Example: [('state', '=', 'sale')]"/>
-                        </group>
-                        <group string="Own Documents">
-                            <field name="own_documents_only"/>
-                            <field name="owner_field_id"
-                                   invisible="not own_documents_only"
-                                   required="own_documents_only"
-                                   domain="[('model_id', 'in', model_ids), ('ttype', '=', 'many2one'), ('relation', '=', 'res.users')]"
-                                   options="{'no_create': True}"
-                                   help="Restrict users to records where the selected owner field equals the current user."/>
-                        </group>
-                        <group string="Time Restriction">
-                            <field name="use_time_restriction"/>
-                            <field name="allowed_weekday_ids"
-                                   widget="many2many_tags"
-                                   invisible="not use_time_restriction"
-                                   options="{'no_create': True}"
-                                   help="Leave empty to use all weekdays."/>
-                            <field name="time_from" invisible="not use_time_restriction" widget="float_time"/>
-                            <field name="time_to" invisible="not use_time_restriction" widget="float_time"/>
-                            <field name="timezone_mode" invisible="not use_time_restriction"/>
-                        </group>
-                        <group string="IP Restriction">
-                            <field name="use_ip_restriction"/>
-                            <field name="allowed_ip_ranges"
-                                   invisible="not use_ip_restriction"
-                                   placeholder="192.168.1.10&#10;192.168.1.0/24"
-                                   help="One IP or CIDR range per line."/>
-                        </group>
-                        <group string="User Interface">
-                            <field name="hide_restricted_buttons"/>
+                        <group>
+                            <group string="User Interface">
+                                <field name="hide_restricted_buttons"/>
+                            </group>
+
+                            <group string="IP Restriction">
+                                <field name="use_ip_restriction"/>
+                                <field name="allowed_ip_ranges"
+                                       invisible="not use_ip_restriction"
+                                       placeholder="192.168.1.10&#10;192.168.1.0/24"
+                                       help="One IP or CIDR range per line."/>
+                            </group>
+                            <group string="Time Restriction">
+                                <field name="use_time_restriction"/>
+                                <field name="allowed_weekday_ids"
+                                       widget="many2many_tags"
+                                       invisible="not use_time_restriction"
+                                       options="{'no_create': True}"
+                                       help="Leave empty to use all weekdays."/>
+                                <field name="time_from" invisible="not use_time_restriction" widget="float_time"/>
+                                <field name="time_to" invisible="not use_time_restriction" widget="float_time"/>
+                                <field name="timezone_mode" invisible="not use_time_restriction"/>
+                            </group>
+
                         </group>
                     </sheet>
                 </form>
@@ -202,8 +216,10 @@
             <field name="arch" type="xml">
                 <form string="Approval Request" create="0">
                     <header>
-                        <button name="action_approve" type="object" string="Approve" class="btn-primary" groups="base.group_system" invisible="state != 'pending'"/>
-                        <button name="action_reject" type="object" string="Reject" groups="base.group_system" invisible="state != 'pending'"/>
+                        <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                                groups="base.group_system" invisible="state != 'pending'"/>
+                        <button name="action_reject" type="object" string="Reject" groups="base.group_system"
+                                invisible="state != 'pending'"/>
                         <button name="action_cancel" type="object" string="Cancel" invisible="state != 'pending'"/>
                         <field name="state" widget="statusbar" statusbar_visible="pending,approved,rejected,cancelled"/>
                     </header>
@@ -256,7 +272,8 @@
             <field name="arch" type="xml">
                 <form string="Restriction Template">
                     <header>
-                        <button name="action_open_apply_wizard" type="object" string="Apply Template" class="btn-primary"/>
+                        <button name="action_open_apply_wizard" type="object" string="Apply Template"
+                                class="btn-primary"/>
                     </header>
                     <sheet>
                         <group>
@@ -274,7 +291,9 @@
                                 <field name="prevent_archive"/>
                                 <field name="prevent_import"/>
                                 <field name="own_documents_only"/>
-                                <field name="owner_field_id" domain="[('model_id', '=', model_id), ('ttype', '=', 'many2one'), ('relation', '=', 'res.users')]" options="{'no_create': True}"/>
+                                <field name="owner_field_id"
+                                       domain="[('model_id', '=', model_id), ('ttype', '=', 'many2one'), ('relation', '=', 'res.users')]"
+                                       options="{'no_create': True}"/>
                                 <field name="use_domain"/>
                                 <field name="domain_force"/>
                             </tree>
