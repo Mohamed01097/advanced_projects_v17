@@ -1,4 +1,5 @@
 import ipaddress
+import logging
 import pytz
 
 from odoo import _, api, fields, models
@@ -28,6 +29,7 @@ UI_ACTION_FIELDS = {
     'duplicate': 'prevent_duplicate',
     'export': 'prevent_export',
     'archive': 'prevent_archive',
+    'import': 'prevent_import',
 }
 
 APPROVAL_ACTIONS = ('edit', 'delete', 'duplicate', 'archive')
@@ -48,6 +50,7 @@ LOG_ACTION_BY_ACTION = {
 
 WEEKDAY_CODES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 FORBIDDEN_READONLY_FIELD_NAMES = {'id', 'create_uid', 'create_date', 'write_uid', 'write_date'}
+_logger = logging.getLogger(__name__)
 
 
 class UserRestriction(models.Model):
@@ -311,26 +314,78 @@ class UserRestriction(models.Model):
         self.env.registry.clear_cache()
 
     @api.model
-    def get_ui_restrictions(self, model_name):
-        restrictions = self.sudo().search([
-            ('model_ids.model', '=', model_name),
-            ('user_ids', 'in', self.env.user.id),
-            ('hide_restricted_buttons', '=', True),
-        ])
-
+    def get_ui_restrictions(self, model_name, res_id=False):
+        user = self.env.user
+        company = self.env.company
         result = {
+            'hide_restricted_buttons': False,
             'prevent_create': False,
             'prevent_edit': False,
             'prevent_delete': False,
             'prevent_duplicate': False,
             'prevent_export': False,
             'prevent_archive': False,
+            'prevent_import': False,
         }
 
-        for rec in restrictions:
-            for key in result:
-                if getattr(rec, key):
+        _logger.warning(
+            "UI RESTRICTION CHECK user=%s uid=%s model=%s company=%s",
+            user.login,
+            self.env.uid,
+            model_name,
+            company.display_name,
+        )
+
+        matching_rules = self.sudo().browse()
+        if not model_name:
+            _logger.warning(
+                "UI RESTRICTION MATCHED IDS=%s RESULT=%s",
+                matching_rules.ids,
+                result,
+            )
+            return result
+
+        rules = self.sudo().search([
+            ('active', '=', True),
+            ('hide_restricted_buttons', '=', True),
+            ('model_ids.model', '=', model_name),
+        ])
+
+        if 'use_domain' in self._fields:
+            rules = rules.filtered(lambda restriction: not restriction.use_domain)
+
+        user_group_ids = set(user.groups_id.ids)
+        company_id = company.id
+
+        def user_matches(rule):
+            if not rule.user_ids and not rule.group_ids:
+                return False
+            if user.id in rule.user_ids.ids:
+                return True
+            return bool(user_group_ids.intersection(rule.group_ids.ids))
+
+        def company_matches(rule):
+            if not rule.company_ids:
+                return True
+            return company_id in rule.company_ids.ids
+
+        matching_rules = rules.filtered(
+            lambda rule: user_matches(rule) and company_matches(rule)
+        )
+
+        if matching_rules:
+            result['hide_restricted_buttons'] = True
+
+        for rec in matching_rules:
+            for key in UI_ACTION_FIELDS.values():
+                if key in rec._fields and getattr(rec, key):
                     result[key] = True
+
+        _logger.warning(
+            "UI RESTRICTION MATCHED IDS=%s RESULT=%s",
+            matching_rules.ids,
+            result,
+        )
 
         return result
 

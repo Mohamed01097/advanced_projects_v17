@@ -1,27 +1,33 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
+import { ActionMenus } from "@web/search/action_menus/action_menus";
 import { CogMenu } from "@web/search/cog_menu/cog_menu";
 import { FormController } from "@web/views/form/form_controller";
 import { ListController } from "@web/views/list/list_controller";
-import { onPatched, onWillStart, useEffect } from "@odoo/owl";
+import { onPatched, onWillStart, useEffect, useExternalListener, useState } from "@odoo/owl";
 
 const EMPTY_RESTRICTIONS = Object.freeze({
+    hide_restricted_buttons: false,
     prevent_create: false,
     prevent_edit: false,
     prevent_delete: false,
     prevent_duplicate: false,
     prevent_export: false,
     prevent_archive: false,
+    prevent_import: false,
 });
 
 const ACTION_FIELDS = [
+    "hide_restricted_buttons",
     "prevent_create",
     "prevent_edit",
     "prevent_delete",
     "prevent_duplicate",
     "prevent_export",
     "prevent_archive",
+    "prevent_import",
 ];
 
 const STATIC_ACTIONS = {
@@ -30,7 +36,24 @@ const STATIC_ACTIONS = {
     duplicate: "prevent_duplicate",
     delete: "prevent_delete",
     export: "prevent_export",
+    import: "prevent_import",
 };
+
+const COMPONENT_ACTIONS = {
+    ExportAll: "prevent_export",
+    ImportRecords: "prevent_import",
+};
+
+const LABEL_ACTIONS = new Map([
+    ["Delete", "prevent_delete"],
+    ["Export", "prevent_export"],
+    ["Export All", "prevent_export"],
+    ["Duplicate", "prevent_duplicate"],
+    ["Archive", "prevent_archive"],
+    ["Unarchive", "prevent_archive"],
+    ["Import", "prevent_import"],
+    ["Import records", "prevent_import"],
+]);
 
 const restrictionsByModel = new Map();
 
@@ -62,18 +85,61 @@ function isPrevented(restrictions, fieldName) {
 function getControllerModelName(controller) {
     const props = controller.props || {};
     const model = controller.model || {};
-    return props.resModel || (model.root && model.root.resModel) || false;
+    return (model.root && model.root.resModel) || props.resModel || false;
+}
+
+function getControllerResId(controller) {
+    if (typeof controller.getUiRestrictionResId === "function") {
+        return controller.getUiRestrictionResId() || false;
+    }
+    const props = controller.props || {};
+    const model = controller.model || {};
+    return (model.root && model.root.resId) || props.resId || false;
 }
 
 function getCogModelName(cogMenu) {
     const props = cogMenu.props || {};
     const env = cogMenu.env || {};
-    return props.resModel || (env.searchModel && env.searchModel.resModel) || false;
+    return (
+        props.resModel ||
+        (env.searchModel && env.searchModel.resModel) ||
+        (env.model && env.model.root && env.model.root.resModel) ||
+        false
+    );
+}
+
+function getActionMenuModelName(actionMenu, props) {
+    const menuProps = props || actionMenu.props || {};
+    const env = actionMenu.env || {};
+    return (
+        menuProps.resModel ||
+        (env.searchModel && env.searchModel.resModel) ||
+        (env.model && env.model.root && env.model.root.resModel) ||
+        false
+    );
+}
+
+function setupControllerRestrictionsState(controller) {
+    const restrictions = getModelRestrictions(getControllerModelName(controller));
+    controller.dynamicUiRestrictionState = useState({ restrictions });
+    controller.uiRestrictions = restrictions;
+}
+
+function updateControllerRestrictionsState(controller, restrictions) {
+    const normalized = normalizeRestrictions(restrictions);
+    controller.uiRestrictions = normalized;
+    if (controller.dynamicUiRestrictionState) {
+        controller.dynamicUiRestrictionState.restrictions = normalized;
+    }
+    return normalized;
 }
 
 async function loadUiRestrictions(controller) {
     const modelName = getControllerModelName(controller);
     if (!modelName) {
+        return normalizeRestrictions(EMPTY_RESTRICTIONS);
+    }
+    if (!controller.orm || !controller.orm.call) {
         return setModelRestrictions(modelName, EMPTY_RESTRICTIONS);
     }
 
@@ -81,9 +147,11 @@ async function loadUiRestrictions(controller) {
         const restrictions = await controller.orm.call(
             "user.restrict",
             "get_ui_restrictions",
-            [modelName]
+            [modelName, getControllerResId(controller)]
         );
-        return setModelRestrictions(modelName, restrictions);
+        const normalized = setModelRestrictions(modelName, restrictions);
+        console.log("[Dynamic Restriction UI]", modelName, normalized);
+        return normalized;
     } catch (error) {
         console.warn("dynamic_restriction: failed to load UI restrictions", error);
         return setModelRestrictions(modelName, EMPTY_RESTRICTIONS);
@@ -108,27 +176,137 @@ function restrictStaticActionItems(items, restrictions) {
     return restrictedItems;
 }
 
+function normalizeMenuLabel(label) {
+    return String(label || "").replace(/\s+/g, " ").trim();
+}
+
+function getActionItemLabel(item) {
+    return normalizeMenuLabel(
+        (item && (item.description || item.name)) ||
+            (item && item.action && item.action.name) ||
+            ""
+    );
+}
+
+function getRestrictionFieldForActionItem(item) {
+    if (!item) {
+        return false;
+    }
+    if (item.key && STATIC_ACTIONS[item.key]) {
+        return STATIC_ACTIONS[item.key];
+    }
+    return LABEL_ACTIONS.get(getActionItemLabel(item)) || false;
+}
+
 function isActionItemPrevented(item, restrictions) {
-    const fieldName = item && item.key && STATIC_ACTIONS[item.key];
+    const fieldName = getRestrictionFieldForActionItem(item);
     return Boolean(fieldName && isPrevented(restrictions, fieldName));
 }
+
+function isCogItemPrevented(item, restrictions) {
+    const componentName = item && item.Component && item.Component.name;
+    const fieldName =
+        (componentName && COMPONENT_ACTIONS[componentName]) ||
+        (item && item.key && COMPONENT_ACTIONS[item.key]) ||
+        getRestrictionFieldForActionItem(item);
+    return Boolean(fieldName && isPrevented(restrictions, fieldName));
+}
+
+function filterActionMenuItems(items, restrictions) {
+    const actionItems = (items && items.action) || [];
+    return {
+        ...(items || {}),
+        action: actionItems.filter((item) => !isActionItemPrevented(item, restrictions)),
+    };
+}
+
+function filterRenderedActionItems(items, restrictions) {
+    return (items || []).filter((item) => !isActionItemPrevented(item, restrictions));
+}
+
+function cleanupRestrictedDropdownItems(restrictions, root) {
+    const target = root || (typeof document !== "undefined" ? document : false);
+    if (!target || !target.querySelectorAll) {
+        return;
+    }
+
+    try {
+        const normalized = normalizeRestrictions(restrictions);
+        target
+            .querySelectorAll(
+                ".dropdown-menu .o_menu_item, .dropdown-menu .dropdown-item, " +
+                    ".o-dropdown--menu .o_menu_item, .o-dropdown--menu .dropdown-item"
+            )
+            .forEach((item) => {
+                const label = normalizeMenuLabel(item.textContent);
+                const fieldName = LABEL_ACTIONS.get(label);
+                if (!fieldName) {
+                    return;
+                }
+                const shouldHide = normalized[fieldName];
+                item.classList.toggle("d-none", shouldHide);
+                if (shouldHide) {
+                    item.setAttribute("aria-hidden", "true");
+                } else if (item.getAttribute("aria-hidden") === "true") {
+                    item.removeAttribute("aria-hidden");
+                }
+            });
+    } catch (error) {
+        console.warn("dynamic_restriction: failed to clean up action menu items", error);
+    }
+}
+
+function scheduleRestrictedDropdownCleanup(restrictions, root) {
+    if (typeof window === "undefined") {
+        cleanupRestrictedDropdownItems(restrictions, root);
+        return;
+    }
+    window.setTimeout(() => cleanupRestrictedDropdownItems(restrictions, root), 0);
+}
+
+patch(ActionMenus.prototype, {
+    setup() {
+        super.setup();
+        onPatched(() => {
+            scheduleRestrictedDropdownCleanup(
+                getModelRestrictions(getActionMenuModelName(this))
+            );
+        });
+        useExternalListener(document, "click", () => {
+            scheduleRestrictedDropdownCleanup(
+                getModelRestrictions(getActionMenuModelName(this))
+            );
+        });
+    },
+
+    async getActionItems(props) {
+        const actionItems = await super.getActionItems(props);
+        return filterRenderedActionItems(
+            actionItems,
+            getModelRestrictions(getActionMenuModelName(this, props))
+        );
+    },
+
+    async onItemSelected(item) {
+        const restrictions = getModelRestrictions(getActionMenuModelName(this));
+        if (isActionItemPrevented(item, restrictions) || isCogItemPrevented(item, restrictions)) {
+            return;
+        }
+        return super.onItemSelected(item);
+    },
+});
 
 patch(CogMenu.prototype, {
     get cogItems() {
         const restrictions = getModelRestrictions(getCogModelName(this));
-        if (!isPrevented(restrictions, "prevent_export")) {
-            return super.cogItems;
-        }
-        return super.cogItems.filter(
-            (item) => !item.Component || item.Component.name !== "ExportAll"
-        );
+        return super.cogItems.filter((item) => !isCogItemPrevented(item, restrictions));
     },
 });
 
 patch(FormController.prototype, {
     setup() {
         super.setup();
-        this.uiRestrictions = setModelRestrictions(this.props.resModel, EMPTY_RESTRICTIONS);
+        setupControllerRestrictionsState(this);
         this.baseCanCreate = this.canCreate;
         this.baseCanEdit = this.canEdit;
 
@@ -151,8 +329,9 @@ patch(FormController.prototype, {
     },
 
     async loadDynamicUiRestrictions(shouldRender) {
-        this.uiRestrictions = await loadUiRestrictions(this);
+        updateControllerRestrictionsState(this, await loadUiRestrictions(this));
         this.applyDynamicUiState();
+        this.applyDynamicUiFallbacks();
         if (shouldRender) {
             this.render();
         }
@@ -195,6 +374,7 @@ patch(FormController.prototype, {
                     isPrevented(this.uiRestrictions, "prevent_edit")
                 )
             );
+        scheduleRestrictedDropdownCleanup(this.uiRestrictions);
     },
 
     getStaticActionMenuItems() {
@@ -202,6 +382,10 @@ patch(FormController.prototype, {
             super.getStaticActionMenuItems(),
             this.uiRestrictions
         );
+    },
+
+    get actionMenuItems() {
+        return filterActionMenuItems(super.actionMenuItems, this.uiRestrictions);
     },
 
     async shouldExecuteAction(item) {
@@ -236,7 +420,8 @@ patch(FormController.prototype, {
 patch(ListController.prototype, {
     setup() {
         super.setup();
-        this.uiRestrictions = setModelRestrictions(this.props.resModel, EMPTY_RESTRICTIONS);
+        this.orm = useService("orm");
+        setupControllerRestrictionsState(this);
         this.baseActiveActions = { ...this.activeActions };
         this.baseEditable = this.editable;
 
@@ -248,15 +433,26 @@ patch(ListController.prototype, {
             () => {
                 this.loadDynamicUiRestrictions(true);
             },
-            () => [this.props.resModel]
+            () => [getControllerModelName(this)]
+        );
+
+        useEffect(
+            () => {
+                this.applyDynamicUiFallbacks();
+            },
+            () => [
+                this.model.root.selection.length,
+                this.model.root.isDomainSelected,
+            ]
         );
 
         onPatched(() => this.applyDynamicUiFallbacks());
     },
 
     async loadDynamicUiRestrictions(shouldRender) {
-        this.uiRestrictions = await loadUiRestrictions(this);
+        updateControllerRestrictionsState(this, await loadUiRestrictions(this));
         this.applyDynamicUiState();
+        this.applyDynamicUiFallbacks();
         if (shouldRender) {
             this.render();
         }
@@ -296,6 +492,7 @@ patch(ListController.prototype, {
                     isPrevented(this.uiRestrictions, "prevent_create")
                 )
             );
+        scheduleRestrictedDropdownCleanup(this.uiRestrictions);
     },
 
     getStaticActionMenuItems() {
@@ -303,6 +500,10 @@ patch(ListController.prototype, {
             super.getStaticActionMenuItems(),
             this.uiRestrictions
         );
+    },
+
+    get actionMenuItems() {
+        return filterActionMenuItems(super.actionMenuItems, this.uiRestrictions);
     },
 
     async onClickCreate(...args) {
