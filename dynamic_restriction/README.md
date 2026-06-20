@@ -16,6 +16,7 @@ The module is designed for Odoo consultants, implementation partners, system adm
 - User, group, company, domain, ownership, time, and IP based policy targeting.
 - Own Documents Only mode using a configurable user owner field.
 - UI action hiding for restricted create, edit, delete, duplicate, export, and archive actions.
+- Menu hiding for selective users and groups based on restriction rules.
 - Readonly field protection for sensitive stored fields.
 - Approval workflow for edit, delete, duplicate, and archive actions.
 - Approval request queue with pending, approved, rejected, and cancelled states.
@@ -84,6 +85,10 @@ Enable Own Documents Only and select a user owner field such as `user_id`. Users
 
 Enable Protect Readonly Fields and select stored fields such as price, discount, payment terms, or responsible user fields. Writes to those fields are blocked while other fields can remain editable.
 
+### Hide Menu Items
+
+Enable Hide Menu Items and select menu items to hide from specific users or groups. Menu hiding respects user, group, and company scope settings. System administrators and superusers always see all menus.
+
 ### Review Audit Logs
 
 Open `Dynamic Access Manager > Audit Logs` to review blocked operations, approval-required events, affected records, users, companies, and restriction names.
@@ -91,6 +96,8 @@ Open `Dynamic Access Manager > Audit Logs` to review blocked operations, approva
 ## Support
 
 DevOdooX provides support for installation, configuration, troubleshooting, custom development, and module customization.
+
+For menu restrictions, custom field hiding, or advanced access control requirements, contact us.
 
 Support Email: [devodoox06@gmail.com](mailto:devodoox06@gmail.com)
 

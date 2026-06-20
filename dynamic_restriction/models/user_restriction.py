@@ -2,7 +2,7 @@ import ipaddress
 import logging
 import pytz
 
-from odoo import _, api, fields, models
+from odoo import SUPERUSER_ID, _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.osv import expression
 from odoo.tools.safe_eval import safe_eval
@@ -142,6 +142,17 @@ class UserRestriction(models.Model):
         'ir.model.fields',
         string='Owner Field',
         help='Restrict users to records where the selected owner field equals the current user.',
+    )
+    
+    hide_menu_items = fields.Boolean(
+        string='Hide Menu Items',
+        default=False,
+        help='Hide selected menu items for matching users/groups.',
+    )
+    menu_ids = fields.Many2many(
+        'ir.ui.menu',
+        string='Menu Items',
+        help='Select menu items to hide.',
     )
 
     def _get_evaluated_domain(self):
@@ -388,6 +399,69 @@ class UserRestriction(models.Model):
         )
 
         return result
+
+    @api.model
+    def _get_hidden_menus_for_user(self, user, company):
+        """
+        Get all menu items that should be hidden for the given user in the given company.
+        
+        A menu is hidden when a user.restrict rule matches:
+        - active=True
+        - hide_menu_items=True
+        - menu_ids not empty
+        - current user is in user_ids OR belongs to group_ids
+        - if user_ids and group_ids are both empty: do not apply
+        - if company_ids empty: apply to all companies
+        - if company_ids set: current env.company must be included
+        
+        Exclude:
+        - env.su
+        - SUPERUSER_ID
+        - base.group_system users
+        """
+        hidden_menus = self.env['ir.ui.menu'].browse()
+        
+        # Skip for superuser and system users
+        if self.env.su or user.id == SUPERUSER_ID:
+            return hidden_menus
+        
+        if user.has_group('base.group_system'):
+            return hidden_menus
+        
+        # Find matching rules
+        rules = self.sudo().search([
+            ('active', '=', True),
+            ('hide_menu_items', '=', True),
+        ])
+        
+        user_group_ids = set(user.groups_id.ids)
+        company_id = company.id
+        
+        for rule in rules:
+            # Skip if no menu items configured
+            if not rule.menu_ids:
+                continue
+            
+            # Check user/group match
+            if not rule.user_ids and not rule.group_ids:
+                continue
+            
+            user_matches = (
+                user.id in rule.user_ids.ids or
+                bool(user_group_ids.intersection(rule.group_ids.ids))
+            )
+            
+            if not user_matches:
+                continue
+            
+            # Check company match
+            if rule.company_ids and company_id not in rule.company_ids.ids:
+                continue
+            
+            # Add these menus to hidden menus
+            hidden_menus |= rule.menu_ids
+        
+        return hidden_menus
 
     @api.model_create_multi
     def create(self, vals_list):

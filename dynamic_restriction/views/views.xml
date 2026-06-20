@@ -115,6 +115,15 @@
                                 <field name="hide_restricted_buttons"/>
                             </group>
 
+                            <group string="Menu Restrictions">
+                                <field name="hide_menu_items"/>
+                                <field name="menu_ids"
+                                       widget="many2many_tags"
+                                       invisible="not hide_menu_items"
+                                       options="{'no_create': True}"
+                                       help="Select menu items to hide for matching users/groups."/>
+                            </group>
+
                             <group string="IP Restriction">
                                 <field name="use_ip_restriction"/>
                                 <field name="allowed_ip_ranges"
