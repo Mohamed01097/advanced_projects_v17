@@ -8,3 +8,7 @@ access_dynamic_restriction_template_line_admin,dynamic.restriction.template.line
 access_dynamic_restriction_apply_template_wizard_admin,dynamic.restriction.apply.template.wizard.admin,model_dynamic_restriction_apply_template_wizard,base.group_system,1,1,1,1
 access_dynamic_restriction_weekday_admin,dynamic.restriction.weekday.admin,model_dynamic_restriction_weekday,base.group_system,1,1,1,1
 access_dynamic_restriction_approval_action_admin,dynamic.restriction.approval.action.admin,model_dynamic_restriction_approval_action,base.group_system,1,1,1,1
+access_dynamic_restriction_button_admin,dynamic.restriction.button.admin,model_dynamic_restriction_button,base.group_system,1,1,1,1
+access_dynamic_restriction_tab_admin,dynamic.restriction.tab.admin,model_dynamic_restriction_tab,base.group_system,1,1,1,1
+access_dynamic_view_button_admin,dynamic.view.button.admin,model_dynamic_view_button,base.group_system,1,1,1,1
+access_dynamic_view_tab_admin,dynamic.view.tab.admin,model_dynamic_view_tab,base.group_system,1,1,1,1

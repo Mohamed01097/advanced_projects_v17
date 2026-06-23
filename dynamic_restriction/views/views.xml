@@ -36,6 +36,12 @@
             <field name="model">user.restrict</field>
             <field name="arch" type="xml">
                 <form string="Dynamic Restrictions">
+                    <header>
+                        <button name="action_load_view_elements"
+                                type="object"
+                                string="Load View Elements"
+                                class="btn-primary"/>
+                    </header>
                     <sheet>
                         <group>
                             <group string="Restriction">
@@ -54,14 +60,33 @@
                                        help="Leave empty to apply in all companies."/>
                             </group>
                         </group>
-                        <group string="Blocked Actions" col="4">
-                            <field name="prevent_create"/>
-                            <field name="prevent_edit"/>
-                            <field name="prevent_delete"/>
-                            <field name="prevent_duplicate"/>
-                            <field name="prevent_export"/>
-                            <field name="prevent_archive"/>
-                            <field name="prevent_import"/>
+                        <group string="Blocked Actions">
+                            <group>
+                                <field name="prevent_create"/>
+                                <field name="prevent_edit"/>
+                                <field name="prevent_delete"/>
+                            </group>
+                            <group>
+                                <field name="prevent_duplicate"/>
+                                <field name="prevent_export"/>
+                                <field name="prevent_archive"/>
+                                <field name="prevent_import"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="User Interface">
+                                <field name="hide_restricted_buttons"/>
+                            </group>
+
+                            <group string="Menu Restrictions">
+                                <field name="hide_menu_items"/>
+                                <field name="menu_ids"
+                                       widget="many2many_tags"
+                                       invisible="not hide_menu_items"
+                                       options="{'no_create': True}"
+                                       help="Select menu items to hide for matching users/groups."/>
+                            </group>
+
                         </group>
                         <group string="Mass Actions">
                             <group>
@@ -111,19 +136,6 @@
 
                         </group>
                         <group>
-                            <group string="User Interface">
-                                <field name="hide_restricted_buttons"/>
-                            </group>
-
-                            <group string="Menu Restrictions">
-                                <field name="hide_menu_items"/>
-                                <field name="menu_ids"
-                                       widget="many2many_tags"
-                                       invisible="not hide_menu_items"
-                                       options="{'no_create': True}"
-                                       help="Select menu items to hide for matching users/groups."/>
-                            </group>
-
                             <group string="IP Restriction">
                                 <field name="use_ip_restriction"/>
                                 <field name="allowed_ip_ranges"
@@ -144,6 +156,38 @@
                             </group>
 
                         </group>
+                        <notebook>
+                            <page string="Button Restrictions" name="button_restrictions">
+                                <p class="text-muted">
+                                    Buttons and tabs inherit Model, Users, Groups, and Companies from the main restriction.
+                                </p>
+                                <field name="button_rule_ids" context="{'active_test': False}">
+                                    <tree editable="bottom">
+                                        <field name="active"/>
+                                        <field name="view_button_id"
+                                               domain="[('model_id', 'in', parent.model_ids)]"
+                                               options="{'no_create': True, 'no_open': True}"/>
+                                        <field name="button_label" readonly="1" optional="show" force_save="1"/>
+                                        <field name="description" optional="show"/>
+                                    </tree>
+                                </field>
+                            </page>
+                            <page string="Tab Restrictions" name="tab_restrictions">
+                                <p class="text-muted">
+                                    Buttons and tabs inherit Model, Users, Groups, and Companies from the main restriction.
+                                </p>
+                                <field name="tab_rule_ids" context="{'active_test': False}">
+                                    <tree editable="bottom">
+                                        <field name="active"/>
+                                        <field name="view_tab_id"
+                                               domain="[('model_id', 'in', parent.model_ids)]"
+                                               options="{'no_create': True, 'no_open': True}"/>
+                                        <field name="tab_label" readonly="1" optional="show" force_save="1"/>
+                                        <field name="description" optional="show"/>
+                                    </tree>
+                                </field>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>

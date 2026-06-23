@@ -17,6 +17,7 @@ The module is designed for Odoo consultants, implementation partners, system adm
 - Own Documents Only mode using a configurable user owner field.
 - UI action hiding for restricted create, edit, delete, duplicate, export, and archive actions.
 - Menu hiding for selective users and groups based on restriction rules.
+- Hide specific form buttons and notebook tabs by technical name for selected users, groups, and companies.
 - Readonly field protection for sensitive stored fields.
 - Approval workflow for edit, delete, duplicate, and archive actions.
 - Approval request queue with pending, approved, rejected, and cancelled states.
@@ -88,6 +89,14 @@ Enable Protect Readonly Fields and select stored fields such as price, discount,
 ### Hide Menu Items
 
 Enable Hide Menu Items and select menu items to hide from specific users or groups. Menu hiding respects user, group, and company scope settings. System administrators and superusers always see all menus.
+
+### Hide Buttons & Tabs
+
+Create Button Restrictions or Tab Restrictions on a restriction record to hide specific form buttons or notebook tabs. Select the target model, click Load View Elements, then choose from the discovered buttons or tabs instead of typing technical names manually. Rules can target users, groups, and companies directly, or inherit the parent restriction scope when left empty.
+
+Branding: Devodoox
+
+Support Email: [devodoox06@gmail.com](mailto:devodoox06@gmail.com)
 
 ### Review Audit Logs
 
