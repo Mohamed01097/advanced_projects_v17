@@ -15,6 +15,7 @@ from ..const import (
     BLOCK_POSITIONS,
     FORMULA_FIELD_TYPES,
     GROUP_FIELD_TYPES,
+    REQUIRED_STYLE_KEYS,
     REPORT_TEMPLATE_XML_ID,
 )
 
@@ -28,17 +29,36 @@ class ReportDynamicPdfReport(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
-        report_action = self.env["ir.actions.report"]._get_report_from_name(REPORT_TEMPLATE_XML_ID)
-        report_config = report_action.dynamic_pdf_report_id
+        data = dict(data or {})
+        report_config = data.get("report_config")
+        if report_config and getattr(report_config, "_name", None) != "dynamic.pdf.report":
+            raise UserError(_("The dynamic report configuration in the rendering context is invalid."))
+
         if not report_config:
-            report_config = self.env["dynamic.pdf.report"].sudo().search(
-                [("report_action_id", "=", report_action.id)],
-                limit=1,
+            report_action_id = self.env.context.get("dynamic_pdf_report_action_id")
+            if report_action_id:
+                report_action = self.env["ir.actions.report"].sudo().browse(report_action_id).exists()
+            else:
+                report_action = self.env["ir.actions.report"]._get_report_from_name(REPORT_TEMPLATE_XML_ID)
+            report_config = self.env["ir.actions.report"]._get_dynamic_pdf_report_config(
+                report_action,
+                raise_if_missing=True,
             )
+        return self._prepare_dynamic_pdf_rendering_context(report_config, docids)
+
+    @api.model
+    def _prepare_dynamic_pdf_rendering_context(self, report_config, docids):
+        report_config = report_config.sudo().exists()
         if not report_config:
-            raise UserError(_("Unable to find the dynamic report configuration for this report action."))
+            raise UserError(_("The dynamic report configuration no longer exists."))
+        report_config.ensure_one()
         if not report_config.model_name or report_config.model_name not in self.env:
             raise UserError(_("The configured model is not available in the registry."))
+
+        if isinstance(docids, int):
+            docids = [docids]
+        else:
+            docids = list(docids or [])
 
         field_lines = report_config.field_line_ids.filtered(
             lambda line: line.field_id and line.field_type in ALLOWED_FIELD_TYPES
@@ -664,6 +684,26 @@ class ReportDynamicPdfReport(models.AbstractModel):
 
     @api.model
     def _get_style_values(self, report_config):
+        style_field_names = (
+            "layout_style",
+            "direction",
+            "primary_color",
+            "secondary_color",
+            "text_color",
+            "table_header_bg_color",
+            "table_header_text_color",
+            "border_color",
+            "font_size",
+            "title_font_size",
+            "table_border_style",
+        )
+        style_values = report_config.default_get(list(style_field_names))
+        for field_name in style_field_names:
+            value = report_config[field_name]
+            if value not in (False, None, ""):
+                style_values[field_name] = value
+        report_config = self.env["dynamic.pdf.report"].new(style_values)
+
         text_align = "right" if report_config.direction == "rtl" else "left"
         font_size = max(report_config.font_size or 12, 1)
         title_font_size = max(report_config.title_font_size or 22, 1)
@@ -707,7 +747,7 @@ class ReportDynamicPdfReport(models.AbstractModel):
                 "font-size: 10px; color: %s;"
             ) % (report_config.border_color, report_config.text_color)
 
-        return {
+        style = {
             "article": (
                 "direction: %(direction)s; color: %(text_color)s; font-size: %(font_size)dpx; "
                 "font-family: Arial, sans-serif;"
@@ -844,6 +884,13 @@ class ReportDynamicPdfReport(models.AbstractModel):
                 "watermark_size": font_size + 26,
             },
         }
+        missing_keys = set(REQUIRED_STYLE_KEYS) - set(style)
+        if missing_keys:
+            raise UserError(_(
+                "The dynamic report style is incomplete (missing: %s).",
+                ", ".join(sorted(missing_keys)),
+            ))
+        return style
 
     @api.model
     def _get_cell_border_style(self, report_config):

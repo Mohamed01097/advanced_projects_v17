@@ -1,4 +1,5 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 from ..const import DYNAMIC_REPORT_NAME_PREFIX, REPORT_TEMPLATE_XML_ID
 
@@ -41,6 +42,14 @@ class IrActionsReport(models.Model):
     def _get_dynamic_pdf_report_action_from_name(self, report_name):
         if not isinstance(report_name, str) or not report_name.startswith(DYNAMIC_REPORT_NAME_PREFIX):
             return self.env["ir.actions.report"]
+
+        # The action selected by Odoo's report route is authoritative. Looking
+        # it up first also keeps invalid legacy routes on the controlled error
+        # path instead of redirecting them through a stale reverse relation.
+        route_action = self.sudo().search([("report_name", "=", report_name)], limit=1)
+        if route_action:
+            return route_action
+
         report_id = report_name.removeprefix(DYNAMIC_REPORT_NAME_PREFIX)
         if not report_id.isdigit():
             return self.env["ir.actions.report"]
@@ -74,10 +83,114 @@ class IrActionsReport(models.Model):
                 return action
         return super()._get_report(report_ref)
 
+    @api.model
+    def _get_dynamic_pdf_report_config(self, report, raise_if_missing=False):
+        """Resolve one dynamic configuration for ``report`` without guessing.
+
+        The action-side backlink is authoritative for current actions. The
+        reverse relation supports actions created before that field existed.
+        Broken or ambiguous relations fail before the shared QWeb template is
+        evaluated.
+        """
+        if not report:
+            if raise_if_missing:
+                raise UserError(_("Unable to resolve an empty dynamic report action."))
+            return self.env["dynamic.pdf.report"]
+
+        report = report.sudo().exists()
+        if not report:
+            if raise_if_missing:
+                raise UserError(_("The dynamic report action no longer exists."))
+            return self.env["dynamic.pdf.report"]
+        report.ensure_one()
+
+        direct_config = report.dynamic_pdf_report_id.sudo().exists()
+        reverse_configs = self.env["dynamic.pdf.report"].sudo().search(
+            [("report_action_id", "=", report.id)],
+            limit=2,
+        )
+        report_name = report.report_name or ""
+        is_dynamic_action = bool(
+            direct_config
+            or reverse_configs
+            or report_name == REPORT_TEMPLATE_XML_ID
+            or report_name.startswith(DYNAMIC_REPORT_NAME_PREFIX)
+        )
+        if not is_dynamic_action:
+            return self.env["dynamic.pdf.report"]
+
+        if len(reverse_configs) > 1:
+            raise UserError(_(
+                "Dynamic report action '%(action)s' is linked to multiple configurations (%(ids)s). "
+                "Repair the report-action relationships before printing.",
+                action=report.display_name,
+                ids=", ".join(str(config_id) for config_id in reverse_configs.ids),
+            ))
+        if direct_config and reverse_configs and direct_config != reverse_configs:
+            raise UserError(_(
+                "Dynamic report action '%(action)s' has conflicting configuration links "
+                "(action: %(direct)s, reverse: %(reverse)s). Repair the relationship before printing.",
+                action=report.display_name,
+                direct=direct_config.id,
+                reverse=reverse_configs.id,
+            ))
+
+        report_config = direct_config or reverse_configs
+        if not report_config:
+            raise UserError(_(
+                "Unable to find the dynamic report configuration for action '%s'. "
+                "Regenerate the report action or repair its configuration link.",
+                report.display_name,
+            ))
+        return report_config
+
     def _get_rendering_context_model(self, report):
-        if report.dynamic_pdf_report_id:
+        if self._get_dynamic_pdf_report_config(report):
             return self.env.get("report.%s" % REPORT_TEMPLATE_XML_ID)
         return super()._get_rendering_context_model(report)
+
+    def _get_rendering_context(self, report, docids, data):
+        report_config = self._get_dynamic_pdf_report_config(report)
+        if not report_config:
+            return super()._get_rendering_context(report, docids, data)
+
+        dynamic_data = dict(data or {})
+        dynamic_data["report_config"] = report_config
+        rendering_model = self.with_context(
+            dynamic_pdf_report_id=report_config.id,
+            dynamic_pdf_report_action_id=report.id,
+        )
+        values = super(IrActionsReport, rendering_model)._get_rendering_context(
+            report,
+            docids,
+            dynamic_data,
+        )
+        rendering_model._validate_dynamic_pdf_rendering_context(report_config, values)
+        return values
+
+    @api.model
+    def _validate_dynamic_pdf_rendering_context(self, report_config, values):
+        required_values = ("report_config", "style", "docs", "doc_ids", "doc_model")
+        missing_values = [key for key in required_values if key not in values]
+        if missing_values:
+            raise UserError(_(
+                "The dynamic report rendering context is incomplete (missing: %s).",
+                ", ".join(missing_values),
+            ))
+        if values["report_config"] != report_config:
+            raise UserError(_("The dynamic report rendering context contains the wrong configuration."))
+        if not isinstance(values["style"], dict):
+            raise UserError(_("The dynamic report style context is invalid. Regenerate the report action."))
+        if not hasattr(values["docs"], "_name"):
+            raise UserError(_("The dynamic report document context is invalid."))
+        if not isinstance(values["doc_ids"], list):
+            raise UserError(_("The dynamic report document identifiers must be a list."))
+        if not isinstance(values["doc_model"], str) or not values["doc_model"]:
+            raise UserError(_("The dynamic report document model is invalid."))
+        if values["docs"]._name != values["doc_model"] or values["doc_model"] != report_config.model_name:
+            raise UserError(_("The dynamic report document model does not match its configuration."))
+        if values["docs"].ids != values["doc_ids"]:
+            raise UserError(_("The dynamic report document identifiers do not match the selected records."))
 
     def _render_template(self, template, values=None):
         if isinstance(template, str) and template.startswith(DYNAMIC_REPORT_NAME_PREFIX):
@@ -104,7 +217,7 @@ class IrActionsReport(models.Model):
 
     def _get_dynamic_pdf_report_config_for_logging(self, report_ref):
         report_action = self._get_report(report_ref)
-        report_config = report_action.dynamic_pdf_report_id if report_action else self.env["dynamic.pdf.report"]
+        report_config = self._get_dynamic_pdf_report_config(report_action) if report_action else self.env["dynamic.pdf.report"]
         if not report_config:
             report_config_id = self.env.context.get("dynamic_pdf_report_id")
             report_config = self.env["dynamic.pdf.report"].sudo().browse(report_config_id).exists()

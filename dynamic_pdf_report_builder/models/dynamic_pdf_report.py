@@ -856,7 +856,33 @@ class DynamicPdfReport(models.Model):
         ReportAction = self.env["ir.actions.report"].sudo()
         action = self.report_action_id.sudo().exists()
         if not action:
-            action = ReportAction.search([("dynamic_pdf_report_id", "=", self.id)], limit=1)
+            linked_actions = ReportAction.search([("dynamic_pdf_report_id", "=", self.id)], limit=2)
+            if len(linked_actions) > 1:
+                raise UserError(_(
+                    "Dynamic report '%s' is linked from multiple report actions. Repair the links before regenerating.",
+                    self.display_name,
+                ))
+            action = linked_actions
+
+        if action:
+            conflicting_reports = self.sudo().search([
+                ("report_action_id", "=", action.id),
+                ("id", "!=", self.id),
+            ], limit=1)
+            if conflicting_reports:
+                raise UserError(_(
+                    "Report action '%(action)s' is already linked to dynamic report '%(report)s'. "
+                    "Repair the relationship before regenerating.",
+                    action=action.display_name,
+                    report=conflicting_reports.display_name,
+                ))
+            if action.dynamic_pdf_report_id and action.dynamic_pdf_report_id != self:
+                raise UserError(_(
+                    "Report action '%(action)s' points to another dynamic report (%(report)s). "
+                    "Repair the relationship before regenerating.",
+                    action=action.display_name,
+                    report=action.dynamic_pdf_report_id.display_name,
+                ))
 
         action_vals = self._prepare_report_action_vals()
         if action:
